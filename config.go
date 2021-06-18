@@ -1,6 +1,8 @@
 package drtm
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -17,17 +19,14 @@ type Config struct {
 }
 
 func (c Config) Read() error {
-	var dir string
 	if _, err := os.Stat(c.Path + c.Name + "." + c.Type); os.IsNotExist(err) {
-		dir, err := osext.ExecutableFolder()
+		c.Path, err = osext.ExecutableFolder()
 		if err != nil {
-			dir = "."
-		} else {
-			dir = dir + "/data"
+			c.Path = "."
 		}
 
 	} else {
-		dir, err = filepath.Abs(filepath.Dir(c.Path + c.Name + "." + c.Type))
+		c.Path, err = filepath.Abs(filepath.Dir(c.Path + c.Name + "." + c.Type))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -38,7 +37,7 @@ func (c Config) Read() error {
 	v := viper.New()
 	v.SetConfigType(c.Type)
 	v.SetConfigName(c.Name)
-	v.AddConfigPath(dir + "/")
+	v.AddConfigPath(c.Path)
 	//v.AddConfigPath("./data/")
 	if err := v.ReadInConfig(); err != nil {
 		return err
@@ -49,4 +48,32 @@ func (c Config) Read() error {
 	}
 
 	return nil
+}
+
+func (c Config) Save() error {
+	var dir string
+	if _, err := os.Stat(c.Path + c.Name + "." + c.Type); os.IsNotExist(err) {
+		c.Path, err = osext.ExecutableFolder()
+		if err != nil {
+			c.Path = "."
+		}
+
+	} else {
+		c.Path, err = filepath.Abs(filepath.Dir(c.Path + c.Name + "." + c.Type))
+		if err != nil {
+			log.Fatal(err)
+		}
+		//fmt.Println(dir)
+	}
+
+	if _, err := os.Stat(c.Path + c.Name + "." + c.Type); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
+	file, _ := json.MarshalIndent(c.Config, "", " ")
+
+	return ioutil.WriteFile(c.Path+c.Name+"."+c.Type, file, 0644)
 }
